@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Sunset Bay — Open-World Crime</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0e1420;
+    font-family: "Trebuchet MS", "Segoe UI", Verdana, sans-serif; color: #fff; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; display: none; }
+  #hud-top-left { position: absolute; top: 14px; left: 14px; }
+  #hud-cash { font-size: 30px; font-weight: 800; color: #7dff9a; text-shadow: 2px 2px 0 #000; }
+  #hud-health { margin-top: 6px; width: 210px; height: 14px; background: rgba(0,0,0,.55);
+    border: 2px solid rgba(255,255,255,.7); border-radius: 3px; }
+  #hud-health-fill { height: 100%; width: 100%; background: linear-gradient(90deg,#2fae4e,#7dff9a); }
+  #hud-health-text { font-size: 12px; text-shadow: 1px 1px 0 #000; }
+  #hud-top-right { position: absolute; top: 14px; right: 14px; text-align: right; }
+  #hud-stars { font-size: 30px; letter-spacing: 3px; color: #ffd23c; text-shadow: 2px 2px 0 #000; }
+  #hud-stars.hot { animation: pulse .5s infinite alternate; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.12); } }
+  #hud-clock { font-size: 20px; font-weight: 700; text-shadow: 2px 2px 0 #000; }
+  #hud-objective { position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    max-width: 560px; text-align: center; font-size: 16px; font-weight: 700;
+    background: rgba(0,0,0,.55); padding: 8px 14px; border-radius: 6px; border-left: 4px solid #ffd23c; }
+  #hud-minimap { position: absolute; right: 14px; bottom: 14px; width: 190px; height: 190px;
+    border: 3px solid rgba(255,255,255,.8); border-radius: 50%; background: #10151c; }
+  #hud-speed { position: absolute; right: 220px; bottom: 18px; font-size: 28px; font-weight: 800;
+    text-shadow: 2px 2px 0 #000; display: none; }
+  #hud-carname { position: absolute; right: 220px; bottom: 52px; font-size: 14px; font-weight: 700;
+    color: #ffd23c; text-shadow: 1px 1px 0 #000; }
+  #hud-hint { position: absolute; left: 14px; bottom: 14px; font-size: 13px; line-height: 1.5;
+    background: rgba(0,0,0,.45); padding: 8px 10px; border-radius: 6px; }
+  #hud-toast { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.72); padding: 10px 18px; border-radius: 6px; font-size: 15px;
+    opacity: 0; transition: opacity .3s; max-width: 640px; text-align: center; }
+  #hud-toast.show { opacity: 1; }
+  #hud-banner { position: absolute; top: 38%; left: 50%; transform: translate(-50%,-50%);
+    font-size: 34px; font-weight: 900; color: #ffd23c; text-shadow: 3px 3px 0 #000;
+    opacity: 0; transition: opacity .3s; text-align: center; }
+  #hud-banner.show { opacity: 1; }
+  #hud-crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px;
+    margin: -11px 0 0 -11px; display: none; }
+  #hud-crosshair::before, #hud-crosshair::after { content: ""; position: absolute; background: #fff;
+    box-shadow: 0 0 3px #000; }
+  #hud-crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
+  #hud-crosshair::after { left: 0; top: 10px; width: 22px; height: 2px; }
+  #hud-vignette { position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 120px rgba(255,0,0,0); transition: box-shadow .2s; }
+  #hud-vignette.hurt { box-shadow: inset 0 0 120px rgba(255,0,0,.75); }
+  /* ---------- Screens ---------- */
+  .screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    flex-direction: column; text-align: center; background: rgba(8,12,20,.55); z-index: 10; }
+  .screen h1 { font-size: 72px; margin: 0; letter-spacing: 4px; color: #ffd23c;
+    text-shadow: 4px 4px 0 #c23b4e, 8px 8px 0 rgba(0,0,0,.6); font-style: italic; }
+  .screen h2 { font-size: 20px; margin: 8px 0 4px; color: #7dff9a; letter-spacing: 2px; }
+  .screen p { max-width: 620px; line-height: 1.6; font-size: 16px; text-shadow: 1px 1px 0 #000; }
+  .screen .tag { font-size: 13px; color: #cfe8ff; }
+  .btn { pointer-events: auto; display: inline-block; margin: 8px 6px; padding: 13px 30px;
+    font-size: 18px; font-weight: 800; color: #111; background: #ffd23c; border: none;
+    border-radius: 6px; cursor: pointer; box-shadow: 3px 3px 0 #000; font-family: inherit; }
+  .btn:hover { background: #ffe066; }
+  .btn.alt { background: #2f9e8f; color: #fff; }
+  .btn.ghost { background: rgba(255,255,255,.15); color: #fff; }
+  .controls { text-align: left; background: rgba(0,0,0,.6); padding: 18px 26px; border-radius: 8px;
+    line-height: 1.9; font-size: 15px; }
+  .controls b { color: #ffd23c; }
+  #over-title { font-size: 84px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game" aria-label="Sunset Bay: an original open-world crime game. Explore the city on foot and by car."></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud">
+  <div id="hud-top-left">
+    <div id="hud-cash">$250</div>
+    <div id="hud-health"><div id="hud-health-fill"></div></div>
+    <div id="hud-health-text">100</div>
+  </div>
+  <div id="hud-top-right">
+    <div id="hud-stars">☆☆☆☆☆</div>
+    <div id="hud-clock">15:00</div>
+  </div>
+  <div id="hud-objective">Welcome to Sunset Bay.</div>
+  <canvas id="hud-minimap" width="190" height="190"></canvas>
+  <div id="hud-carname"></div>
+  <div id="hud-speed"></div>
+  <div id="hud-hint">WASD move / drive &nbsp;·&nbsp; Mouse look &nbsp;·&nbsp; E enter car<br>
+    Click shoot &nbsp;·&nbsp; Space jump &nbsp;·&nbsp; Shift run<br>
+    P pause &nbsp;·&nbsp; M mute</div>
+  <div id="hud-toast"></div>
+  <div id="hud-banner"></div>
+  <div id="hud-crosshair"></div>
+  <div id="hud-vignette"></div>
+</div>
+
+<div class="screen" id="screen-title">
+  <h1>SUNSET BAY</h1>
+  <h2>AN OPEN-WORLD CRIME STORY</h2>
+  <p>Rex Marlowe is home — and in debt to the Harbor Kings. Steal cars, outrun the
+    SBPD, run five story jobs and buy your way out. A 100% original city, cast and
+    story: no borrowed names, maps or music.</p>
+  <div>
+    <button class="btn" id="btn-new">NEW GAME</button>
+    <button class="btn alt" id="btn-continue">CONTINUE</button>
+    <button class="btn ghost" id="btn-howto">HOW TO PLAY</button>
+  </div>
+  <p class="tag">Keyboard + mouse &nbsp;·&nbsp; Best in desktop Chrome &nbsp;·&nbsp; Progress saves in your browser</p>
+</div>
+
+<div class="screen" id="screen-howto">
+  <h1 style="font-size:44px">HOW TO PLAY</h1>
+  <div class="controls">
+    <b>WASD / Arrows</b> — walk, run, drive &nbsp;·&nbsp; <b>Mouse</b> — look (click to lock)<br>
+    <b>E</b> — steal / enter a car, E again to get out<br>
+    <b>Click</b> — fire your pistol (on foot) &nbsp;·&nbsp; <b>Space</b> — jump<br>
+    <b>Shift</b> — sprint &nbsp;·&nbsp; <b>P / Esc</b> — pause &nbsp;·&nbsp; <b>M</b> — mute<br><br>
+    Stealing cars, hitting people and shooting raise your <b>wanted stars</b>.<br>
+    The SBPD chases you — lay low and the heat fades. Get caught: BUSTED.<br>
+    Follow the <b style="color:#ffd23c">yellow beacon</b> for story missions.<br>
+    Find 12 <b style="color:#ffd23c">Bay Tokens</b> ($250 each) and drive a <b>Bay Cab</b> for fares.
+  </div>
+  <div><button class="btn" id="btn-howto-back">BACK</button></div>
+</div>
+
+<div class="screen" id="screen-pause">
+  <h1 style="font-size:52px">PAUSED</h1>
+  <p>Sunset Bay waits for no one. Well — right now it does.</p>
+  <div>
+    <button class="btn" id="btn-resume">RESUME</button>
+    <button class="btn alt" id="btn-save">SAVE GAME</button>
+    <button class="btn ghost" id="btn-restart-mission">RESTART MISSION</button>
+    <button class="btn ghost" id="btn-quit-title">QUIT TO TITLE</button>
+  </div>
+</div>
+
+<div class="screen" id="screen-over">
+  <h1 id="over-title">BUSTED</h1>
+  <p id="over-text"></p>
+  <div><button class="btn" id="btn-over">BACK ON THE STREETS</button></div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
